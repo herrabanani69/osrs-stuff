@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Farming contract: take it or ask for easier?</title>
+<meta name="description" content="OSRS Farming Guild contract advisor: which contracts to take and which to swap, based on your patches and schedule.">
+<style>
+[hidden]{display:none !important}
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#E6EBE1; --surface:#F3F6EF; --ink:#18241C; --muted:#5F6E63;
+  --line:#C7D0C1; --soil:#6B4E2E; --leaf:#2F6E2A; --leaf-soft:#D5E6CF; --bad:#9A4B12;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#101712; --surface:#18221B; --ink:#E2EADD; --muted:#93A396;
+    --line:#2C3A30; --soil:#C79A63; --leaf:#86C878; --leaf-soft:#22351F; --bad:#E59A5C;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101712; --surface:#18221B; --ink:#E2EADD; --muted:#93A396;
+  --line:#2C3A30; --soil:#C79A63; --leaf:#86C878; --leaf-soft:#22351F; --bad:#E59A5C;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:16px;line-height:1.5}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+h1,h2{font-family:system-ui,sans-serif;font-weight:800;letter-spacing:-0.01em;margin:0}
+h1{font-size:1.6rem;line-height:1.15}
+h2{font-size:1.2rem;margin-bottom:8px}
+.lede{color:var(--muted);margin:6px 0 16px;max-width:62ch}
+.hint{color:var(--muted);font-size:.85rem;display:block;font-weight:400}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.field{margin-bottom:14px}
+.field:last-child{margin-bottom:0}
+.top{display:block;font-weight:700;margin-bottom:6px}
+select,input[type=number]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;width:100%}
+.level-row{display:flex;gap:12px;align-items:center}
+.level-row input[type=number]{width:84px;flex:none;text-align:center;font-variant-numeric:tabular-nums}
+input[type=range]{flex:1;accent-color:var(--leaf);min-width:0}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{text-align:center;padding:9px 4px;cursor:pointer;font-size:.95rem;border-left:1px solid var(--line)}
+.seg label:first-of-type{border-left:0}
+.seg input:checked+label{background:var(--soil);color:var(--surface);font-weight:700}
+.seg input:disabled+label{opacity:.4;cursor:not-allowed}
+.seg input:focus-visible+label{outline:2px solid var(--leaf);outline-offset:-3px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+:focus-visible{outline:2px solid var(--leaf);outline-offset:2px}
+
+.result{background:var(--leaf-soft);border-radius:18px;padding:18px;margin-bottom:16px}
+.big{font-family:system-ui,sans-serif;font-weight:800;font-size:clamp(2.4rem,12vw,3.6rem);line-height:1;color:var(--leaf);font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.stats div{background:var(--surface);border-radius:12px;padding:8px 10px}
+.stats small{display:block;color:var(--muted);font-size:.8rem}
+.stats b{font-size:1.15rem;font-variant-numeric:tabular-nums}
+
+.slot{display:grid;grid-template-columns:120px 1fr auto;gap:4px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.slot:first-child{border-top:0}
+.slot .lbl{font-weight:700}
+.slot select{padding:7px 10px}
+.slot .val{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap;color:var(--leaf);font-weight:700}
+.slot .val.zero{color:var(--muted);font-weight:400}
+.slot .why{grid-column:2 / 4;color:var(--muted);font-size:.85rem}
+@media (max-width:520px){.slot{grid-template-columns:1fr auto}.slot .lbl{grid-column:1 / 3}.slot .why{grid-column:1 / 3}}
+
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.92rem}
+th,td{padding:7px 8px;text-align:left;border-top:1px solid var(--line);white-space:nowrap}
+thead th{border-top:0;color:var(--muted);font-size:.8rem}
+td.num{text-align:right}
+.tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:.8rem;font-weight:700}
+.tag.instant{background:var(--leaf-soft);color:var(--leaf)}
+.tag.down{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+.tag.wait{background:var(--bg);color:var(--muted);border:1px solid var(--line)}
+.tierbar{display:flex;height:26px;border-radius:8px;overflow:hidden;margin-top:14px;background:var(--surface)}
+.tierbar span{display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;color:var(--surface);min-width:0;overflow:hidden;white-space:nowrap}
+.tierkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.tierkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+tr.cur td{font-weight:700;color:var(--leaf)}
+.notes{color:var(--muted);font-size:.85rem;margin-top:20px;max-width:70ch}
+.sched-row{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:start;margin-top:10px}
+.sched-row .rl{font-size:.8rem;color:var(--muted);padding-top:8px}
+.bar{display:grid;grid-template-columns:repeat(36,1fr);height:40px;border-radius:8px;overflow:hidden;border:1px solid var(--line);touch-action:none;user-select:none;-webkit-user-select:none;cursor:pointer}
+.bar div{background:var(--bg);border-left:1px solid transparent}
+.bar div:nth-child(3n+1){border-left-color:var(--line)}
+.bar div.on{background:var(--leaf);opacity:.85}
+.ticks{position:relative;height:16px;font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.ticks span{position:absolute;transform:translateX(-50%)}
+.ticks span:first-child{transform:none}
+.ticks span:last-child{transform:translateX(-100%)}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.presets button{font:inherit;font-size:.85rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
+tr.best td{background:var(--leaf-soft)}
+:root{--grass:#C9DDB6;--path:#DCCBA4;--hut:#B9A17A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--grass:#1B2B1D;--path:#3E3426;--hut:#5A4A33}}
+:root[data-theme="dark"]{--grass:#1B2B1D;--path:#3E3426;--hut:#5A4A33}
+
+.rbar div{border-left:1px solid transparent}
+.rbar div.off{opacity:.3}
+.brushes{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+.brushes button{font:inherit;font-size:.85rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.brushes button i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.brushes button[aria-pressed="true"]{border-color:var(--ink);font-weight:700;box-shadow:inset 0 0 0 1px var(--ink)}
+.notes p{margin:0 0 8px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Farming contract: take it or ask for easier?</h1>
+  <p class="lede">Tell it what’s growing in your Farming Guild patches. It checks every contract Guildmaster Jane could hand you and says which to take and which to swap for an easier one.</p>
+
+  <form class="panel" onsubmit="return false">
+    <h2>Your settings</h2>
+    <div class="two">
+      <div class="field">
+        <label class="top" for="lvl">Farming level</label>
+        <input type="number" id="lvl" min="45" max="99" value="80" inputmode="numeric">
+      </div>
+      <div class="field">
+        <label class="top" for="lifeSeed">Aim for</label>
+        <select id="lifeSeed"></select>
+      </div>
+    </div>
+    <div class="field">
+      <span class="top">Contract you ask for</span>
+      <div class="seg" role="radiogroup" aria-label="Contract tier">
+        <input type="radio" name="tier" id="t0" value="0"><label for="t0">Easy</label>
+        <input type="radio" name="tier" id="t1" value="1" checked><label for="t1">Medium</label>
+        <input type="radio" name="tier" id="t2" value="2"><label for="t2">Hard</label>
+      </div>
+    </div>
+    <div class="two">
+      <div class="field">
+        <label class="top" for="rule">Normally ask for easier when it takes longer than</label>
+        <select id="rule">
+          <option value="never">Never downgrade</option>
+          <option value="80">1 h 20 (a herb)</option>
+          <option value="160" selected>2 h 40 (a bush)</option>
+          <option value="320">5 h 20 (a maple)</option>
+          <option value="560">9 h 20 (a cactus)</option>
+          <option value="custom">Custom…</option>
+        </select>
+      </div>
+      <div class="field" id="customWrap" hidden>
+        <label class="top" for="custom">Minutes</label>
+        <input type="number" id="custom" min="0" value="200" inputmode="numeric">
+      </div>
+    </div>
+    <span class="top" style="margin-top:4px">When you can hand in contracts</span>
+    <span class="hint">Tap or drag across the bars to switch 20-minute blocks on or off. The same schedule repeats every day.</span>
+    <div id="sched"></div>
+    <div class="presets" role="group" aria-label="Schedule presets">
+      <button type="button" data-p="all">All day</button>
+      <button type="button" data-p="awake">Awake 07–23</button>
+      <button type="button" data-p="me">Mornings + evenings</button>
+      <button type="button" data-p="eve">Evenings only</button>
+      <button type="button" data-p="none">Clear</button>
+    </div>
+    <div id="schedSum" class="hint"></div>
+    <details style="margin-top:12px;background:var(--bg);border-radius:12px;padding:10px 14px">
+      <summary style="cursor:pointer;font-weight:700">More settings: lateness, your own time, disease</summary>
+      <div class="two" style="margin-top:10px">
+        <div class="field"><label class="top" for="slipP">Chance you’re late to a finished contract (%)</label><input type="number" id="slipP" min="0" max="100" value="30" inputmode="numeric"></div>
+        <div class="field"><label class="top" for="slipK">How late, at most (20-minute windows)</label><input type="number" id="slipK" min="1" max="30" value="2" inputmode="numeric"></div>
+      </div>
+      <div class="field"><label class="top" for="simOver">Your own time per contract (min)</label><input type="number" id="simOver" min="0" value="5" inputmode="numeric" style="max-width:140px"></div>
+      <span class="top">Patch care</span>
+      <div id="disList" style="display:grid;grid-template-columns:110px 1fr;gap:6px 12px;align-items:center"></div>
+      <div class="two" style="margin-top:12px">
+        <div class="field">
+          <label class="top" for="disGuess">Disease chance for crops with unknown rates (/128 per cycle)</label>
+          <input type="number" id="disGuess" min="0" max="128" value="0" inputmode="numeric">
+          <span class="hint">Only herbs, fruit trees, maple and magic have known rates. 0 ignores disease for the rest.</span>
+        </div>
+        <div class="field">
+          <label class="check" style="padding:0;margin-bottom:6px"><input type="checkbox" id="disRez"><span>Cast Resurrect Crops on dead patches</span></label>
+          <label class="top" for="disMag">Magic level</label>
+          <input type="number" id="disMag" min="78" max="99" value="99" inputmode="numeric">
+          <span class="hint" id="disRezHint"></span>
+        </div>
+      </div>
+    </details>
+  </form>
+
+  <section class="panel" aria-labelledby="h-now">
+    <h2 id="h-now">Right now</h2>
+    <div class="field">
+      <label class="top" for="nowTime">Time of day</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="time" id="nowTime" style="width:auto">
+        <button type="button" id="nowNow" style="font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer">Now</button>
+        <label class="check" style="padding:0"><input type="checkbox" id="nowLive"><span>Always use the current time</span></label>
+      </div>
+      <span class="hint" style="margin-top:4px">Or tap the day chart. Green is when you’re available; the dark block is the time you picked.</span>
+      <div id="nowBars"></div>
+      <span id="nowAvail" class="hint" style="margin-top:4px"></span>
+    </div>
+    <div class="field">
+      <label class="top" for="tickOff">Your farming tick offset: how many minutes <em>before</em> :00/:20/:40 your ticks happen (0–30)</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="number" id="tickOff" min="0" max="30" value="0" inputmode="numeric" style="width:90px">
+        <span class="hint" style="display:inline">or: my 20-minute crops (herbs, bushes) grow at minute</span>
+        <input type="number" id="tickMin" min="0" max="59" placeholder="e.g. 8" inputmode="numeric" style="width:80px">
+      </div>
+      <span class="hint" id="tickHint" style="margin-top:4px">Used by the “Plant now” buttons. For RuneLite times ending in :08, :28, :48, type 8 in the second box.</span>
+    </div>
+    <div id="stateList"></div>
+    <div class="presets">
+      <button type="button" id="stQuick">Plant now in every empty patch</button>
+      <button type="button" id="stFill">Fill with the recommended preplants, fully grown</button>
+      <button type="button" id="stClear">Empty all patches</button>
+    </div>
+    <button type="button" id="nowBtn" style="font:inherit;font-weight:700;color:var(--surface);background:var(--soil);border:0;border-radius:10px;padding:9px 14px;cursor:pointer">Check contracts</button>
+    <div id="nowOut" aria-live="polite" style="margin-top:10px"></div>
+  </section>
+
+  <div class="notes">
+    <p>For each contract it plays out the next 4 days 300 times, once taking it and once swapping it for an easier one, with your schedule, lateness and patch care. Later contracts follow your normal downgrade rule. Used and cleared preplants have to regrow. Clearing a growing plant uses a spade on the patch.</p>
+    <p>Contract lists, growth times and seed pack tables come from the Old School RuneScape Wiki. Not affiliated with Jagex.</p>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+
+/* name, patch, stages, minutes per stage, level, [easy tier, medium tier, hard tier] (0 = not in that list) */
+const RAW = [
+  ["Potatoes","allot",4,10,45,[1,0,0]],["Onions","allot",4,10,45,[1,0,0]],["Cabbages","allot",4,10,45,[1,0,0]],
+  ["Tomatoes","allot",4,10,45,[1,0,0]],["Sweetcorn","allot",6,10,45,[1,0,0]],["Strawberries","allot",6,10,45,[1,2,0]],
+  ["Watermelons","allot",8,10,65,[0,3,4]],["Snape grass","allot",7,10,65,[0,2,3]],
+  ["Marigold","flower",4,5,45,[1,0,0]],["Rosemary","flower",4,5,45,[1,0,0]],["Nasturtium","flower",4,5,45,[1,0,0]],
+  ["Woad","flower",4,5,45,[1,0,0]],["Limpwurt","flower",4,5,45,[1,0,0]],["White lily","flower",4,5,65,[0,2,3]],
+  ["Guam","herb",4,20,65,[2,0,0]],["Marrentill","herb",4,20,65,[2,0,0]],["Tarromin","herb",4,20,65,[2,0,0]],
+  ["Harralander","herb",4,20,65,[2,0,0]],["Ranarr","herb",4,20,65,[2,0,0]],["Toadflax","herb",4,20,65,[2,0,0]],
+  ["Irit","herb",4,20,65,[2,3,0]],["Avantoe","herb",4,20,65,[2,3,0]],["Kwuarm","herb",4,20,65,[0,3,0]],
+  ["Snapdragon","herb",4,20,65,[0,3,4]],["Cadantine","herb",4,20,67,[0,3,4]],["Lantadyme","herb",4,20,73,[0,3,4]],
+  ["Dwarf weed","herb",4,20,85,[0,0,4]],["Torstol","herb",4,20,85,[0,0,4]],
+  ["Redberries","bush",5,20,45,[2,0,0]],["Cadavaberries","bush",6,20,45,[2,0,0]],["Dwellberries","bush",7,20,45,[2,0,0]],
+  ["Jangerberries","bush",8,20,48,[2,3,0]],["Whiteberries","bush",8,20,65,[0,3,4]],["Poison ivy","bush",8,20,70,[0,3,4]],
+  ["Oak","tree",5,40,65,[3,0,0]],["Willow","tree",7,40,65,[3,0,0]],["Maple","tree",8,40,65,[3,4,5]],
+  ["Yew","tree",10,40,65,[0,4,5]],["Magic","tree",12,40,75,[0,4,5]],
+  ["Apple","fruit",6,160,85,[3,0,0]],["Banana","fruit",6,160,85,[3,0,0]],["Orange","fruit",6,160,85,[3,0,0]],
+  ["Curry","fruit",6,160,85,[3,4,0]],["Pineapple","fruit",6,160,85,[0,4,0]],["Papaya","fruit",6,160,85,[0,4,0]],
+  ["Palm","fruit",6,160,85,[0,4,5]],["Dragonfruit","fruit",6,160,85,[0,0,5]],
+  ["Cactus","cactus",7,80,55,[3,4,0]],["Potato cactus","cactus",7,10,65,[0,2,3]],
+  ["Celastrus","celastrus",5,160,85,[0,0,5]],["Redwood","redwood",10,640,90,[0,0,5]]
+];
+const CROPS = RAW.map(([name, patch, st, cy, level, tiers]) => ({name, patch, time: st * cy, st, cy, level, tiers}));
+const BY = Object.fromEntries(CROPS.map(c => [c.name, c]));
+const TIER_MIN = [45, 65, 85];
+const TIER_NAME = ["easy", "medium", "hard"];
+const SLOTS = [
+  {id:"allotA", patch:"allot", label:"Allotment 1"},
+  {id:"allotB", patch:"allot", label:"Allotment 2"},
+  {id:"flower", patch:"flower", label:"Flower"},
+  {id:"herb", patch:"herb", label:"Herb"},
+  {id:"bush", patch:"bush", label:"Bush"},
+  {id:"tree", patch:"tree", label:"Tree"},
+  {id:"fruit", patch:"fruit", label:"Fruit tree"},
+  {id:"cactus", patch:"cactus", label:"Cactus"},
+  {id:"celastrus", patch:"celastrus", label:"Celastrus"},
+  {id:"redwood", patch:"redwood", label:"Redwood"}
+];
+
+const fmt = m => {
+  if (m < 59.5) return (m < 10 ? m.toFixed(1) : Math.round(m)) + " min";
+  const tot = Math.round(m), h = Math.floor(tot / 60), mm = tot - h * 60;
+  return mm ? `${h} h ${mm} min` : `${h} h`;
+};
+const pct = x => (x * 100).toFixed(x < 0.1 ? 1 : 0) + "%";
+
+/* ---------- model ---------- */
+function pools(lvl) {
+  return [0, 1, 2].map(t => lvl < TIER_MIN[t] ? [] :
+    CROPS.filter(c => c.tiers[t] && lvl >= c.level));
+}
+function evaluate(P, start, thr, planted) {
+  const out = {wait:0, instant:0, down:0, tier:0, dist:[0,0,0,0,0,0], rows:new Map()};
+  const walk = (t, mass, downgraded) => {
+    const pool = P[t];
+    if (!pool.length) return;
+    const m = mass / pool.length;
+    pool.forEach(c => {
+      if (planted.has(c.name)) {
+        add(t, c, m, "instant");
+        out.instant += m; out.tier += m * c.tiers[t]; out.dist[c.tiers[t]] += m;
+      } else if (c.time > thr && t > 0 && P[t - 1].length) {
+        add(t, c, m, "down");
+        if (!downgraded) out.down += m;
+        walk(t - 1, m, true);
+      } else {
+        add(t, c, m, "wait");
+        out.wait += m * c.time; out.tier += m * c.tiers[t]; out.dist[c.tiers[t]] += m;
+      }
+    });
+  };
+  const add = (t, c, m, kind) => {
+    const k = t + "|" + c.name;
+    const r = out.rows.get(k) || {t, c, p:0, kind};
+    r.p += m; out.rows.set(k, r);
+  };
+  walk(start, 1, false);
+  return out;
+}
+function optimize(P, start, thr, fixed) {
+  // candidates per slot: crops of that patch that can show up from the start tier or below
+  const reachable = new Set();
+  for (let t = 0; t <= start; t++) P[t].forEach(c => reachable.add(c.name));
+  const cand = s => CROPS.filter(c => c.patch === s.patch && reachable.has(c.name));
+  const assign = {};
+  SLOTS.forEach(s => { assign[s.id] = fixed[s.id] && fixed[s.id] !== "auto" ? (fixed[s.id] === "none" ? null : fixed[s.id]) : null; });
+  const set = a => new Set(Object.values(a).filter(Boolean));
+  const score = a => evaluate(P, start, thr, set(a)).wait;
+  for (let iter = 0; iter < 8; iter++) {
+    let changed = false;
+    SLOTS.forEach(s => {
+      if (fixed[s.id] && fixed[s.id] !== "auto") return;
+      const other = s.id === "allotA" ? assign.allotB : s.id === "allotB" ? assign.allotA : null;
+      let best = assign[s.id], bestScore = score(assign);
+      [null, ...cand(s).map(c => c.name)].forEach(n => {
+        if (n && n === other) return;
+        const trial = {...assign, [s.id]: n};
+        const sc = score(trial);
+        if (sc < bestScore - 1e-9 || (Math.abs(sc - bestScore) < 1e-9 && n && !best && false)) { best = n; bestScore = sc; }
+      });
+      if (best !== assign[s.id]) { assign[s.id] = best; changed = true; }
+    });
+    if (!changed) break;
+  }
+  return {assign, cand};
+}
+
+
+/* ---------- glue for the standalone page ---------- */
+let fixed = {}; SLOTS.forEach(s => fixed[s.id] = "auto");
+const SLOT = 20, NS = 72;
+let avail = Array.from({length: NS}, (_, i) => i >= 21 && i < 69);
+let treeSel = null;
+const xpTierCache = {};
+const STATEKEY = "contract-now-lite-state-v1";
+let patchState = SLOTS.map(s => ({id: s.id, crop: null, hours: 0}));
+let nowBusy = false;
+function readThr() {
+  const v = $("rule").value;
+  $("customWrap").hidden = v !== "custom";
+  if (v === "never") return Infinity;
+  if (v === "custom") return Math.max(0, +$("custom").value || 0);
+  return +v;
+}
+function getCtx() {
+  const lvl = Math.max(45, Math.min(99, parseInt($("lvl").value, 10) || 45));
+  [0, 1, 2].forEach(t => { $("t" + t).disabled = lvl < TIER_MIN[t]; });
+  let start = +document.querySelector("input[name=tier]:checked").value;
+  if (lvl < TIER_MIN[start]) { start = lvl >= 65 ? 1 : 0; $("t" + start).checked = true; }
+  const isXP = $("lifeSeed").value === "__treexp";
+  if (isXP) treeSel = treesForLevel();
+  const seedName = isXP ? "Tree XP" : $("lifeSeed").value;
+  const seedPer = [0,1,2,3,4,5].map(t => t ? (isXP ? treeXpPerPack(t) : packStats([0,0,0,0,0,0].map((_, k) => k === t ? 1 : 0))[seedName].exp) : 0);
+  return {P: pools(lvl), start, seedPer, isXP, unitLabel: isXP ? "banked tree XP" : seedName.toLowerCase() + " seeds",
+    cfg: {end: 0, slip: Math.max(0, Math.min(100, +$("slipP").value || 0)) / 100, slipK: Math.max(1, parseInt($("slipK").value, 10) || 1),
+      over: Math.max(0, +$("simOver").value || 0), dis: readDisease()}};
+}
+function drawSched() {
+  document.querySelectorAll("#sched .bar div").forEach(d => d.classList.toggle("on", avail[+d.dataset.i]));
+  $("schedSum").textContent = `Available ${fmt(avail.filter(Boolean).length * SLOT)} a day.`;
+  drawNowBars();
+}
+const LITEKEY = "contract-now-lite-v1";
+function lifeSave() {
+  try { localStorage.setItem(LITEKEY, JSON.stringify({lvl:$("lvl").value, tier:document.querySelector("input[name=tier]:checked").value, rule:$("rule").value,
+    custom:$("custom").value, seed:$("lifeSeed").value, slipP:$("slipP").value, slipK:$("slipK").value, over:$("simOver").value, avail})); } catch (e) {}
+}
+function render() { getCtx(); stateVisibility(); drawNowBars(); $("nowOut").innerHTML = ""; lifeSave(); }
+function nextAvail(t) {
+  if (!avail.some(Boolean)) return Infinity;
+  let s = Math.floor(t / SLOT);
+  if (avail[((s % NS) + NS) % NS]) return t;
+  for (let k = 1; k <= NS; k++) { s++; if (avail[s % NS]) return s * SLOT; }
+  return Infinity;
+}
+
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+const CAP = {allot: 2};
+
+const DIS_KNOWN = {herb: [27, 3], fruit: [18, 4], Maple: [13, 7], Magic: [9, 11]};
+
+function lifeRun(P, start, down, assign, cfg, rng, seedPer, init) {
+  const D = cfg.dis;
+  const healthy = {dz: Infinity, death: Infinity, rezzed: false};
+  const slots = init && init.slots ? init.slots.map(s => ({...s, ...healthy, cleared: false}))
+    : Object.entries(assign).filter(([, n]) => n).map(([id, n]) => ({id, patch: BY[n].patch, crop: n, readyAt: 0, ...healthy, cleared: false}));
+  // plant a crop at time t: when it is ready, and if/when it gets diseased and dies
+  const pRoll = (name, t) => {
+    const c = BY[name], out = {readyAt: t + c.time, ...healthy};
+    if (!D) return out;
+    const prot = D.prot[c.patch] || "none";
+    if (prot === "paid") return out;
+    const known = DIS_KNOWN[name] || DIS_KNOWN[c.patch];
+    const base = known ? known[0] : D.guess, n = known ? known[1] : c.st - 1;
+    if (!base) return out;
+    const keepTenths = prot === "ultra" ? 1 : prot === "super" ? 2 : 10;
+    const p = Math.ceil(base * keepTenths / 10) / 128;
+    for (let j = 1; j <= n; j++) if (rng() < p) { out.dz = t + (j + 1) * c.cy; out.death = out.dz + c.cy; break; }
+    return out;
+  };
+  // you look at a patch at time T: cure it if diseased, resurrect or replant it if dead
+  const fix = (o, T) => {
+    if (o.dz > o.readyAt || o.dz > T) return;
+    const c = BY[o.crop], left = o.readyAt - o.dz + c.cy;
+    if (T < o.death) { o.readyAt = T + left; o.dz = o.death = Infinity; return; }
+    if (D && D.rez && !o.rezzed && rng() < D.rez) { o.readyAt = T + left; o.dz = o.death = Infinity; o.rezzed = true; return; }
+    Object.assign(o, pRoll(o.crop, T));
+  };
+  let t = init ? init.t0 : 0, last = null, count = 0, tiers = 0, seeds = 0;
+  let forced = init && init.forced ? init.forced : null;
+  const arrive = r => {
+    let a = nextAvail(r);
+    if (rng() < cfg.slip) a = nextAvail(a + (1 + Math.floor(rng() * cfg.slipK)) * SLOT);
+    return a;
+  };
+  for (let guard = 0; guard < 100000; guard++) {
+    if (!forced) t = nextAvail(t);
+    if (t >= cfg.end) break;
+    let tt = start, c, used = null, keep = false, o = null;
+    for (;;) {
+      if (forced) {
+        c = BY[forced.crop]; tt = forced.tt; last = c.name;
+        const act = forced.action; forced = null;
+        if (act === "down") { tt--; continue; }
+        keep = true;
+      } else {
+        let pool = P[tt].filter(x => x.name !== last);
+        if (!pool.length) pool = P[tt];
+        c = pool[Math.floor(rng() * pool.length)];
+        last = c.name;
+      }
+      const s = slots.find(x => x.crop === c.name && !x.cleared);
+      const canDown = !keep && tt > 0 && P[tt - 1].length;
+      if (s) {
+        fix(s, t);
+        const rem = Math.max(0, s.readyAt - t);
+        if (canDown && down(t, rem)) { tt--; continue; }
+        used = s; o = s; break;
+      }
+      if (canDown && down(t, c.time)) { tt--; continue; }
+      const same = slots.filter(x => x.patch === c.patch && !x.cleared);
+      if (same.length >= (CAP[c.patch] || 1)) {
+        // clear the preplant that is furthest from ready (or the quickest to regrow)
+        same.sort((a, b) => (b.readyAt - a.readyAt) || (BY[a.crop].time - BY[b.crop].time));
+        same[0].cleared = true;
+      }
+      o = {crop: c.name, ...pRoll(c.name, t)}; break;
+    }
+    // go back when it should be ready; deal with disease if it struck
+    let a = o.readyAt <= t && !(o.dz <= o.readyAt) ? t : arrive(Math.max(t, o.readyAt));
+    for (let g2 = 0; g2 < 30 && a < cfg.end; g2++) {
+      fix(o, a);
+      if (o.readyAt <= a && !(o.dz <= o.readyAt)) break;
+      a = arrive(Math.max(a, o.readyAt));
+    }
+    if (a >= cfg.end) break;
+    t = a + cfg.over;
+    const tier = c.tiers[tt];
+    count++; tiers += tier; seeds += seedPer[tier];
+    if (used) Object.assign(used, pRoll(c.name, t));
+    slots.forEach(x => { if (x.cleared) { x.cleared = false; Object.assign(x, pRoll(x.crop, t)); } else if (x !== used) fix(x, t); });
+  }
+  return {count, tiers, seeds};
+}
+
+const PACK = {1:{tot:6, med:[1,3], high:null}, 2:{tot:7, med:[2,3], high:"t2"}, 3:{tot:8, med:[2,4], high:[0,1]}, 4:{tot:9, med:[3,5], high:[1,2]}, 5:{tot:10, med:[4,6], high:[1,3]}};
+
+const LOW = [["Potato",2,8,12],["Onion",2,8,12],["Cabbage",2,8,12],["Tomato",2,8,12],["Sweetcorn",2,8,12],["Strawberry",2,8,12],
+  ["Barley",2,8,14],["Hammerstone",2,6,8],["Asgarnian",2,6,8],["Jute",2,8,12],["Yanillian",2,6,8],["Krandorian",2,6,8],
+  ["Acorn",2,3,5],["Apple tree",2,3,5],["Banana tree",2,3,5],["Orange tree",2,3,5],["Curry tree",2,3,5],
+  ["Redberry",2,6,8],["Cadavaberry",2,6,8],["Dwellberry",2,6,8],["Jangerberry",2,6,8],
+  ["Marigold",2,8,12],["Rosemary",2,8,12],["Nasturtium",2,8,12],["Woad",2,8,12],
+  ["Guam",2,3,5],["Marrentill",2,3,5],["Tarromin",2,3,5],["Harralander",2,3,5],["Mushroom spore",1,4,6],["Belladonna",1,4,6]];
+
+const MED = [["Irit",3,2,6],["Limpwurt",3,4,8],["Watermelon",2,8,12],["Snape grass",2,6,8],["Wildblood",2,8,12],["Whiteberry",2,6,8],
+  ["Poison ivy",2,6,8],["Cactus",2,2,6],["Potato cactus",2,2,6],["Willow",1,2,4],["Pineapple",1,3,5],["Toadflax",1,1,3],["Avantoe",1,1,3],
+  ["Kwuarm",1,1,3],["Cadantine",1,1,3],["Lantadyme",1,1,3],["Dwarf weed",1,1,3],["Calquat",1,3,6],["Teak",1,1,3]];
+
+const HIGH = [["Papaya tree",5,1,3],["Palm tree",5,1,2],["Hespori",5,1,1],["Ranarr",4,1,2],["Snapdragon",4,1,1],["Maple",4,1,2],
+  ["Mahogany",4,1,2],["Yew",3,1,1],["Dragonfruit",3,1,1],["Celastrus",2,1,1],["Torstol",2,1,1],["Magic",1,1,1],["Spirit",1,1,1],["Redwood",1,1,1]];
+
+const KEY_SEEDS = ["Ranarr","Snapdragon","Torstol","Toadflax","Kwuarm","Cadantine","Dwarf weed","Lantadyme","Avantoe","Irit",
+  "Snape grass","Magic","Yew","Maple","Palm tree","Papaya tree","Dragonfruit","Celastrus","Redwood","Spirit","Hespori","Calquat","Mahogany","Teak"];
+
+const TABLES = [["low",LOW,60],["med",MED,30],["high",HIGH,44]];
+
+function splits(t) {
+  const pk = PACK[t], out = [];
+  const meds = []; for (let m = pk.med[0]; m <= pk.med[1]; m++) meds.push(m);
+  const highs = pk.high === null ? [[0,1]] : pk.high === "t2" ? [[0,10/11],[1,1/11]]
+    : (() => { const a = []; for (let h = pk.high[0]; h <= pk.high[1]; h++) a.push([h, 1 / (pk.high[1] - pk.high[0] + 1)]); return a; })();
+  meds.forEach(m => highs.forEach(([h, ph]) => out.push({low: pk.tot - m - h, med: m, high: h, p: ph / meds.length})));
+  return out;
+}
+
+function packStats(dist) {
+  const stats = {};
+  TABLES.forEach(([kind, tbl, tot]) => tbl.forEach(([name, w, a, b]) => { stats[name] = {exp: 0, none: 0, w: w / tot, avg: (a + b) / 2, kind}; }));
+  for (let t = 1; t <= 5; t++) {
+    if (!dist[t]) continue;
+    const sp = splits(t);
+    Object.values(stats).forEach(s => {
+      let e = 0, none = 0;
+      sp.forEach(x => { const r = x[s.kind]; e += x.p * r * s.w * s.avg; none += x.p * Math.pow(1 - s.w, r); });
+      s.exp += dist[t] * e; s.none += dist[t] * none;
+    });
+  }
+  return stats;
+}
+
+const TREE_XP = [
+  ["Acorn","Oak",15,481.5,"Trees"],["Willow","Willow",30,1481.3,"Trees"],["Maple","Maple",45,3448.4,"Trees"],
+  ["Yew","Yew",60,7150.9,"Trees"],["Magic","Magic",75,13913.8,"Trees"],
+  ["Apple tree","Apple",27,1272.5,"Fruit trees"],["Banana tree","Banana",33,1841.5,"Fruit trees"],["Orange tree","Orange",39,2586.7,"Fruit trees"],
+  ["Curry tree","Curry",42,3036.9,"Fruit trees"],["Pineapple","Pineapple",51,4791.7,"Fruit trees"],["Papaya tree","Papaya",57,6380.4,"Fruit trees"],
+  ["Palm tree","Palm",68,10509.6,"Fruit trees"],["Dragonfruit","Dragonfruit",81,17895,"Fruit trees"],
+  ["Teak","Teak",35,7315,"Hardwood & special"],["Mahogany","Mahogany",55,15783,"Hardwood & special"],["Calquat","Calquat",72,12516.5,"Hardwood & special"],
+  ["Celastrus","Celastrus",85,14404.5,"Hardwood & special"],["Spirit","Spirit tree",83,19501.3,"Hardwood & special"],["Redwood","Redwood",90,22680,"Hardwood & special"]
+];
+
+function treeXpPerPack(t) {
+  const key = t + "|" + [...treeSel].sort().join(",");
+  if (xpTierCache[key] != null) return xpTierCache[key];
+  const s = packStats([0,0,0,0,0,0].map((_, k) => k === t ? 1 : 0));
+  return xpTierCache[key] = TREE_XP.reduce((sum, [n, , , xp]) => sum + (treeSel.has(n) ? s[n].exp * xp : 0), 0);
+}
+
+function treesForLevel() { const l = parseInt($("lvl").value, 10) || 0; return new Set(TREE_XP.filter(x => x[2] <= l).map(x => x[0])); }
+
+const DIS_PATCHES = [["allot","Allotments",true],["flower","Flower",false],["herb","Herb",false],["bush","Bush",true],["tree","Tree",true],
+  ["fruit","Fruit tree",true],["cactus","Cactus",true],["celastrus","Celastrus",true],["redwood","Redwood",true]];
+
+let disProt = {allot:"ultra", flower:"ultra", herb:"ultra", bush:"ultra", tree:"paid", fruit:"paid", cactus:"ultra", celastrus:"ultra", redwood:"ultra"};
+
+const rezChanceAt = M => (1 + Math.floor(64 * (Math.max(78, Math.min(99, M)) - 36) / 21 + 0.5)) / 256;
+
+function readDisease() {
+  const rez = $("disRez").checked ? rezChanceAt(parseInt($("disMag").value, 10) || 99) : 0;
+  return {prot: {...disProt}, guess: Math.max(0, Math.min(128, parseInt($("disGuess").value, 10) || 0)), rez};
+}
+
+function buildDisease() {
+  try { const s = JSON.parse(localStorage.getItem(DISKEY)); if (s) { if (s.prot) disProt = {...disProt, ...s.prot}; if (s.guess != null) $("disGuess").value = s.guess; $("disRez").checked = !!s.rez; if (s.mag) $("disMag").value = s.mag; } } catch (e) {}
+  $("disList").innerHTML = DIS_PATCHES.map(([k, label, paid]) => `<span style="font-weight:700">${label}</span>
+    <select data-dis="${k}" aria-label="${label} care" style="padding:7px 10px">
+      <option value="none">Nothing</option><option value="super">Supercompost</option><option value="ultra">Ultracompost</option>${paid ? `<option value="paid">Pay for protection</option>` : ""}
+    </select>`).join("");
+  document.querySelectorAll("[data-dis]").forEach(sel => { sel.value = disProt[sel.dataset.dis] || "ultra"; if (!sel.value) sel.value = "ultra"; });
+  const save = () => { try { localStorage.setItem(DISKEY, JSON.stringify({prot: disProt, guess: $("disGuess").value, rez: $("disRez").checked, mag: $("disMag").value})); } catch (e) {} };
+  const hint = () => { $("disRezHint").textContent = `Success chance ${(rezChanceAt(parseInt($("disMag").value, 10) || 99) * 100).toFixed(1)}%. One try per crop; a failed cast means replanting.`; };
+  $("disList").addEventListener("change", e => { const k = e.target.dataset.dis; if (!k) return; disProt[k] = e.target.value; save(); render(); });
+  ["disGuess", "disMag"].forEach(id => $(id).addEventListener("input", () => { hint(); save(); render(); }));
+  $("disRez").addEventListener("change", () => { save(); render(); });
+  hint();
+}
+
+function stReadyIn(st, t0) {
+  if (!st.crop) return null;
+  if ((st.mode || "in") === "in") return (st.hours || 0) * 60;
+  if (!st.at) return 0;
+  const [h, m] = st.at.split(":").map(Number);
+  return Math.max(0, h * 60 + m + (+st.day || 0) * 1440 - t0);
+}
+
+function drawState() {
+  const box = $("stateList");
+  box.innerHTML = SLOTS.map((s, i) => {
+    const st = patchState[i];
+    const opts = CROPS.filter(c => c.patch === s.patch)
+      .map(c => `<option value="${c.name}" ${st.crop === c.name ? "selected" : ""}>${c.name}</option>`).join("");
+    const mode = st.mode || "in", dis = st.crop ? "" : "disabled";
+    const ctl = `<select data-k="mode" data-i="${i}" ${dis} style="width:auto;padding:6px 8px" aria-label="${s.label} readiness type">
+        <option value="in" ${mode === "in" ? "selected" : ""}>ready in</option><option value="at" ${mode === "at" ? "selected" : ""}>ready at</option></select>`
+      + (mode === "in"
+        ? `<input type="number" data-k="hours" data-i="${i}" min="0" step="0.1" value="${st.hours || 0}" ${dis} inputmode="decimal" style="width:70px;padding:6px 8px" aria-label="${s.label} hours until grown"><span>h</span>`
+        : `<input type="time" data-k="at" data-i="${i}" value="${st.at || ""}" ${dis} style="width:auto;padding:6px 8px" aria-label="${s.label} ready at">
+           <select data-k="day" data-i="${i}" ${dis} style="width:auto;padding:6px 8px" aria-label="${s.label} ready day">${["today", "tomorrow", "in 2 days", "in 3 days", "in 4 days"].map((d, k) => `<option value="${k}" ${(+st.day || 0) === k ? "selected" : ""}>${d}</option>`).join("")}</select>`);
+    return `<div class="slot" data-slot="${s.id}" style="grid-template-columns:120px 1fr auto">
+      <span class="lbl">${s.label}</span>
+      <select data-k="crop" data-i="${i}" aria-label="${s.label} contents"><option value="">Empty</option>${opts}</select>
+      <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)">${ctl}
+        <button type="button" data-k="quick" data-i="${i}" title="Set this patch as if you planted its best preplant just now" style="font:inherit;font-size:.8rem;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer">Plant now</button></span>
+    </div>`;
+  }).join("") + `<span class="hint" style="margin-top:4px">“Ready in 0 h” means fully grown. With “ready at”, use the time your timer shows; a time earlier than the time of day above counts as already grown, unless you pick a later day.</span>`;
+  stateVisibility();
+}
+
+function stateVisibility() {
+  const lvl = parseInt($("lvl").value, 10) || 45;
+  const P = pools(lvl), have = new Set();
+  P.forEach(p => p.forEach(c => have.add(c.patch)));
+  document.querySelectorAll("#stateList [data-slot]").forEach(el => {
+    const s = SLOTS.find(x => x.id === el.dataset.slot); el.hidden = !have.has(s.patch);
+  });
+}
+
+const stateSave = () => { try { localStorage.setItem(STATEKEY, JSON.stringify(patchState)); } catch (e) {} };
+
+function nowMinutes() {
+  const v = $("nowTime").value;
+  if (!v || $("nowLive").checked) { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  const [h, m] = v.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function tickOffset() { return Math.max(0, Math.min(30, +$("tickOff").value || 0)); }
+
+function nextTickAbs(ms, L) {
+  const step = L * 60000, off = tickOffset() * 60000;
+  return (Math.floor((ms + off) / step) + 1) * step - off;
+}
+
+function finishMinute(cropName, t0) {
+  const c = BY[cropName];
+  const mid = new Date(); mid.setHours(0, 0, 0, 0);
+  let t = mid.getTime() + t0 * 60000;
+  t = cropName === "Yew" ? nextTickAbs(t, 5) : nextTickAbs(t, c.cy);
+  for (let k = 1; k < c.st; k++) t = nextTickAbs(t, c.cy);
+  return Math.round((t - mid.getTime()) / 60000);
+}
+
+function bestPreplants() {
+  const lvl = Math.max(45, Math.min(99, parseInt($("lvl").value, 10) || 45));
+  const start = +document.querySelector("input[name=tier]:checked").value;
+  return optimize(pools(lvl), start, readThr(), fixed).assign;
+}
+
+function quickPlant(i, best) {
+  const st = patchState[i];
+  const crop = (best || bestPreplants())[SLOTS[i].id] || st.crop;
+  if (!crop) return false;
+  const t0 = nowMinutes(), f = finishMinute(crop, t0);
+  const day = Math.floor(f / 1440), m = f - day * 1440;
+  patchState[i] = {...st, crop, mode: "at", at: `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`, day: Math.min(4, day)};
+  return true;
+}
+
+function setNowTime(min) {
+  min = ((Math.round(min) % 1440) + 1440) % 1440;
+  $("nowTime").value = `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+  drawNowBars(); $("nowOut").innerHTML = "";
+}
+
+function drawNowBars() {
+  const box = $("nowBars"); if (!box) return;
+  const t = nowMinutes(), sel = Math.floor(t / SLOT);
+  let html = "";
+  [0, 1].forEach(r => {
+    let cells = "";
+    for (let k = 0; k < 36; k++) { const i = r * 36 + k; cells += `<div data-n="${i}" class="${avail[i] ? "on" : ""} ${i === sel ? "sel" : ""}"></div>`; }
+    html += `<div class="sched-row"><span class="rl">${r ? "12–24" : "00–12"}</span><div>
+      <div class="bar" aria-label="Pick a time ${r ? "12:00 to 24:00" : "00:00 to 12:00"}">${cells}</div>
+      <div class="ticks">${[0, 3, 6, 9, 12].map(x => `<span style="left:${x / 12 * 100}%">${String(r * 12 + x).padStart(2, "0")}:00</span>`).join("")}</div></div></div>`;
+  });
+  box.innerHTML = html;
+  const away = !avail[sel];
+  const nxt = nextAvail(t);
+  $("nowAvail").textContent = away
+    ? `You’re marked as away at this time${isFinite(nxt) ? `; your schedule picks up again at ${String(Math.floor(nxt % 1440 / 60)).padStart(2, "0")}:${String(nxt % 60).padStart(2, "0")}` : ""}. The check still assumes you’re at Jane right now.`
+    : "";
+}
+
+function initState() {
+  try { const s = JSON.parse(localStorage.getItem(STATEKEY)); if (Array.isArray(s) && s.length === SLOTS.length) patchState = s; } catch (e) {}
+  drawState();
+  $("stateList").addEventListener("input", e => {
+    const i = e.target.dataset.i; if (i == null) return;
+    const k = e.target.dataset.k;
+    if (k === "quick") return;
+    if (k === "crop") { patchState[i].crop = e.target.value || null; drawState(); }
+    else if (k === "mode") { patchState[i].mode = e.target.value; drawState(); }
+    else if (k === "at") patchState[i].at = e.target.value;
+    else if (k === "day") patchState[i].day = +e.target.value;
+    else patchState[i].hours = Math.max(0, +e.target.value || 0);
+    stateSave(); $("nowOut").innerHTML = "";
+  });
+  $("stateList").addEventListener("click", e => {
+    if (e.target.dataset.k !== "quick") return;
+    const i = +e.target.dataset.i;
+    if (quickPlant(i)) { drawState(); stateSave(); $("nowOut").innerHTML = ""; }
+  });
+  $("stQuick").addEventListener("click", () => {
+    const best = bestPreplants();
+    patchState.forEach((st, i) => { if (!st.crop) quickPlant(i, best); });
+    drawState(); stateSave(); $("nowOut").innerHTML = "";
+  });
+  $("stFill").addEventListener("click", () => {
+    const lvl = Math.max(45, Math.min(99, parseInt($("lvl").value, 10) || 45));
+    let start = +document.querySelector("input[name=tier]:checked").value;
+    const a = optimize(pools(lvl), start, readThr(), fixed).assign;
+    patchState = SLOTS.map(s => ({id: s.id, crop: a[s.id] || null, hours: 0}));
+    drawState(); stateSave(); $("nowOut").innerHTML = "";
+  });
+  $("stClear").addEventListener("click", () => { patchState = SLOTS.map(s => ({id: s.id, crop: null, hours: 0})); drawState(); stateSave(); $("nowOut").innerHTML = ""; });
+  $("nowBtn").addEventListener("click", runNow);
+  $("nowNow").addEventListener("click", () => { const d = new Date(); setNowTime(d.getHours() * 60 + d.getMinutes()); });
+  const NOWKEY = "contract-now-v1";
+  const nowSave = () => { try { localStorage.setItem(NOWKEY, JSON.stringify({live: $("nowLive").checked, off: $("tickOff").value})); } catch (e) {} };
+  try { const s = JSON.parse(localStorage.getItem(NOWKEY)); if (s) { $("nowLive").checked = !!s.live; if (s.off != null) $("tickOff").value = s.off; } } catch (e) {}
+  const applyLive = () => {
+    const live = $("nowLive").checked;
+    $("nowTime").disabled = live; $("nowNow").disabled = live;
+    if (live) { const d = new Date(); setNowTime(d.getHours() * 60 + d.getMinutes()); }
+  };
+  $("nowLive").addEventListener("change", () => { applyLive(); nowSave(); });
+  setInterval(() => { if ($("nowLive").checked) { const d = new Date(), m = d.getHours() * 60 + d.getMinutes(); if (nowMinutes() !== m || $("nowTime").value.slice(3) !== String(m % 60).padStart(2, "0")) { const keep = $("nowOut").innerHTML; setNowTime(m); $("nowOut").innerHTML = keep; } } }, 20000);
+  $("tickOff").addEventListener("input", () => { $("tickMin").value = ""; $("tickHint").textContent = `Offset ${tickOffset()} min: your 20-minute crops grow at :${[0, 20, 40].map(x => String(((x - tickOffset()) % 60 + 60) % 60).padStart(2, "0")).sort().join(", :")}.`; nowSave(); });
+  $("tickMin").addEventListener("input", () => {
+    const v = parseInt($("tickMin").value, 10); if (isNaN(v)) return;
+    const o = ((20 - (v % 20)) % 20);
+    $("tickOff").value = o;
+    $("tickHint").textContent = o + 20 <= 30
+      ? `That fits an offset of ${o} or ${o + 20}; ${o} is set. A tree (40-minute) growth time tells them apart — use the tick clock page’s finder if your times come out 20 minutes off.`
+      : `Offset set to ${o} minutes.`;
+    nowSave();
+  });
+  applyLive();
+  $("nowTime").addEventListener("input", () => { drawNowBars(); $("nowOut").innerHTML = ""; });
+  $("nowBars").addEventListener("click", e => { const i = e.target.dataset && e.target.dataset.n; if (i == null) return; setNowTime(+i * SLOT); });
+  { const d = new Date(); setNowTime(d.getHours() * 60 + d.getMinutes()); }
+}
+
+async function runNow() {
+  if (nowBusy) return;
+  nowBusy = true; $("nowBtn").disabled = true;
+  const out = $("nowOut");
+  try {
+    const {P, start, cfg, seedPer, unitLabel, isXP} = getCtx();
+    const thr = readThr(), down = (t, rem) => rem > thr;
+    const t0 = nowMinutes(), tLabel = $("nowTime").value || "now";
+    const H = 4, R = 300, c2 = {...cfg, end: t0 + H * 1440};
+    const lvl = parseInt($("lvl").value, 10) || 45;
+    const visible = new Set(); P.forEach(p => p.forEach(c => visible.add(c.patch)));
+    const readyIn = st => {
+      if ((st.mode || "in") === "in") return (st.hours || 0) * 60;
+      if (!st.at) return 0;
+      const [h, m] = st.at.split(":").map(Number);
+      return Math.max(0, h * 60 + m + (+st.day || 0) * 1440 - t0);
+    };
+    const slots = patchState.map((st, i) => st.crop && visible.has(SLOTS[i].patch)
+      ? {id: SLOTS[i].id, patch: BY[st.crop].patch, crop: st.crop, readyAt: t0 + readyIn(st)} : null).filter(Boolean);
+    const assign = {};
+    const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+    const runs = forced => { const r = []; for (let k = 0; k < R; k++) r.push(lifeRun(P, start, down, assign, c2, mulberry32(4242 + k), seedPer, {slots, t0, forced}).seeds); return r; };
+    const fmtU = x => isXP ? Math.round(x).toLocaleString() : x.toFixed(2);
+    const sg = x => (x >= 0 ? "+" : "−") + fmtU(Math.abs(x));
+    const rows = [];
+    const pool = P[start];
+    for (let i = 0; i < pool.length; i++) {
+      const c = pool[i];
+      out.innerHTML = `<span class="hint">Checking ${c.name}… (${i + 1} of ${pool.length})</span>`;
+      await new Promise(r => setTimeout(r, 0));
+      const s = slots.find(x => x.crop === c.name);
+      let what;
+      if (s) what = s.readyAt <= t0 ? "Preplant ready, instant" : `Preplant ready in ${fmt(s.readyAt - t0)}`;
+      else {
+        const same = slots.filter(x => x.patch === c.patch);
+        what = `Grow it: ${fmt(c.time)}` + (same.length >= (CAP[c.patch] || 1) ? ` (clears your ${same.map(x => x.crop.toLowerCase()).join(" or ")})` : "");
+      }
+      const acc = runs({crop: c.name, tt: start, action: "take"});
+      if (start === 0 || !P[start - 1].length) { rows.push({c, what, rec: "Take it", diff: null}); continue; }
+      const dn = runs({crop: c.name, tt: start, action: "down"});
+      const df = acc.map((x, k) => x - dn[k]), md = mean(df);
+      const se = Math.sqrt(df.reduce((q, x) => q + (x - md) ** 2, 0) / (df.length - 1) / df.length);
+      const rec = md > 2 * se ? "Take it" : md < -2 * se ? "Ask for easier" : "Either (too close to call)";
+      rows.push({c, what, rec, diff: md, moe: 2 * se});
+    }
+    rows.sort((a, b) => (a.diff ?? 0) - (b.diff ?? 0));
+    const easier = rows.filter(r => r.rec === "Ask for easier").map(r => r.c.name);
+    out.innerHTML = `<p style="margin:4px 0 10px">${easier.length ? `<b>Ask for an easier contract if Jane offers:</b> ${easier.join(", ")}.` : "<b>Take whatever Jane offers.</b> No contract is clearly worth swapping right now."}</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Contract</th><th>If you take it</th><th>Do this</th><th class="num">Taking vs swapping</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td>${r.c.name}</td><td>${r.what}</td><td style="font-weight:700;color:${r.rec === "Ask for easier" ? "var(--bad)" : r.rec === "Take it" ? "var(--leaf)" : "var(--muted)"}">${r.rec}</td>
+        <td class="num">${r.diff == null ? "–" : sg(r.diff) + ` <span class="hint" style="display:inline">±${fmtU(r.moe)}</span>`}</td></tr>`).join("")}
+      </tbody></table></div>
+      <span class="hint" style="margin-top:8px">“Taking vs swapping” is the average difference in ${unitLabel} over the next ${H} days, starting from ${tLabel}. Later contracts follow your main rule (${thr === Infinity ? "never downgrade" : "downgrade past " + fmt(thr)}). The ± is the margin of error; “Either” means the difference is smaller than that margin. Swapping gives you a random easier contract, which can itself be one you’d want to swap again.</span>`;
+  } catch (e) {
+    out.innerHTML = `<span class="hint">Something went wrong: ${e.message}</span>`;
+  } finally { nowBusy = false; $("nowBtn").disabled = false; }
+}
+
+function buildSched() {
+  const box = $("sched");
+  [0, 1].forEach(r => {
+    const row = document.createElement("div"); row.className = "sched-row";
+    row.innerHTML = `<span class="rl">${r ? "12–24" : "00–12"}</span>`;
+    const wrap = document.createElement("div");
+    const bar = document.createElement("div"); bar.className = "bar"; bar.setAttribute("aria-label", `Availability ${r ? "12:00 to 24:00" : "00:00 to 12:00"}`);
+    for (let k = 0; k < 36; k++) { const d = document.createElement("div"); d.dataset.i = r * 36 + k; bar.appendChild(d); }
+    const ticks = document.createElement("div"); ticks.className = "ticks";
+    ticks.innerHTML = [0, 3, 6, 9, 12].map(h => `<span style="left:${h / 12 * 100}%">${String(r * 12 + h).padStart(2, "0")}:00</span>`).join("");
+    wrap.appendChild(bar); wrap.appendChild(ticks); row.appendChild(wrap); box.appendChild(row);
+  });
+  let paint = null;
+  const cellAt = e => { const el = document.elementFromPoint(e.clientX, e.clientY); return el && el.dataset && el.dataset.i !== undefined && el.parentElement.classList.contains("bar") ? +el.dataset.i : null; };
+  box.addEventListener("pointerdown", e => {
+    const i = cellAt(e); if (i === null) return;
+    e.preventDefault(); paint = !avail[i]; avail[i] = paint; lastA = i; drawSched();
+  });
+  let lastA = null;
+  window.addEventListener("pointermove", e => {
+    if (paint === null) return; const i = cellAt(e); if (i === null) return;
+    const a = Math.min(i, lastA ?? i), z = Math.max(i, lastA ?? i);
+    for (let k = a; k <= z; k++) avail[k] = paint;
+    lastA = i; drawSched();
+  });
+  window.addEventListener("pointerup", () => { if (paint === null) return; paint = null; lastA = null; lifeSave(); render(); });
+  document.querySelectorAll("[data-p]").forEach(b => b.addEventListener("click", () => {
+    const p = b.dataset.p, h = i => i * SLOT / 60;
+    avail = avail.map((_, i) => p === "all" ? true : p === "none" ? false
+      : p === "awake" ? h(i) >= 7 && h(i) < 23
+      : p === "me" ? (h(i) >= 7 && h(i) < 9) || (h(i) >= 17 && h(i) < 23)
+      : (h(i) >= 18 && h(i) < 23));
+    drawSched(); lifeSave(); render();
+  }));
+  drawSched();
+}
+
+/* ---------- start-up ---------- */
+{ const o = document.createElement("option"); o.value = "__treexp"; o.textContent = "Banked tree XP (trees you can plant)"; $("lifeSeed").appendChild(o); }
+KEY_SEEDS.forEach(n => { const o = document.createElement("option"); o.value = n; o.textContent = n; $("lifeSeed").appendChild(o); });
+$("lifeSeed").value = "Ranarr";
+try {
+  const s = JSON.parse(localStorage.getItem(LITEKEY));
+  if (s) {
+    if (s.lvl) $("lvl").value = s.lvl; if (s.tier != null && $("t" + s.tier)) $("t" + s.tier).checked = true;
+    if (s.rule) $("rule").value = s.rule; if (s.custom) $("custom").value = s.custom; if (s.seed) $("lifeSeed").value = s.seed;
+    if (s.slipP != null) $("slipP").value = s.slipP; if (s.slipK) $("slipK").value = s.slipK; if (s.over != null) $("simOver").value = s.over;
+    if (Array.isArray(s.avail) && s.avail.length === NS) avail = s.avail.map(Boolean);
+  }
+} catch (e) {}
+buildDisease();
+initState();
+buildSched();
+["lvl", "custom", "slipP", "slipK", "simOver"].forEach(id => $(id).addEventListener("input", render));
+["rule", "lifeSeed"].forEach(id => $(id).addEventListener("change", render));
+document.querySelectorAll("input[name=tier]").forEach(r => r.addEventListener("change", render));
+render();
+</script>
+</body>
+</html>
